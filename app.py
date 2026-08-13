@@ -15,21 +15,24 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- THE SMART DATA LOADER ---
+# --- THE BULLETPROOF DATA LOADER ---
 @st.cache_data(ttl=600)
 def load_data():
-    # 1. If the database doesn't exist, tell the pipeline to build it right now!
-    if not os.path.exists('retail_advanced.db'):
+    try:
+        # 1. First, try to read the data normally
+        conn = sqlite3.connect('retail_advanced.db')
+        data = pd.read_sql_query("SELECT * FROM products", conn)
+        conn.close()
+        return data
+    except Exception:
+        # 2. If it crashes (because the file is empty or missing), build it!
+        import api_pipeline
         api_pipeline.run_pipeline()
         
-    # 2. Connect to the newly built database
-    conn = sqlite3.connect('retail_advanced.db')
-    data = pd.read_sql_query("SELECT * FROM products", conn)
-    conn.close()
-    return data
+        # 3. Now connect to the freshly built data
+        conn = sqlite3.connect('retail_advanced.db')
+        data = pd.read_sql_query("SELECT * FROM products", conn)
+        conn.close()
+        return data
 
-# We can remove the try/except error block entirely because it fixes itself now!
 df = load_data()
-
-# ... (The rest of your dashboard code starting with st.title remains exactly the same below here) ...
-st.title("⚡ Retail Price, Promotion & Brand Positioning")
